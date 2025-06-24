@@ -10,7 +10,18 @@ import {
   Divider,
   LinearProgress,
   Alert,
-  IconButton
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow
 } from '@mui/material';
 import {
   Refresh as RefreshIcon
@@ -27,6 +38,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { formatIST } from '../../utils/date';
+import { API_BASE_URL } from '../../config/api';
 
 interface DashboardField {
   name: string;
@@ -80,6 +92,7 @@ const UserDashboard: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [widgetData, setWidgetData] = useState<Record<string, DataPoint[]>>({});
   const [widgetLoading, setWidgetLoading] = useState<Record<string, boolean>>({});
+  const [viewingDashboard, setViewingDashboard] = useState<Dashboard | null>(null);
 
   useEffect(() => {
     fetchUserDashboards();
@@ -100,7 +113,7 @@ const UserDashboard: React.FC = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:8000/api/v1/dashboards/my-dashboards', {
+      const response = await fetch(`${API_BASE_URL}/dashboards/my-dashboards`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -139,7 +152,7 @@ const UserDashboard: React.FC = () => {
       }
 
       const response = await fetch(
-        `http://localhost:8000/api/v1/dashboard/${dashboardId}/field/${fieldName}/data?hours=24&limit=50`,
+        `${API_BASE_URL}/dashboard/${dashboardId}/field/${fieldName}/data?hours=24&limit=50`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -192,6 +205,50 @@ const UserDashboard: React.FC = () => {
     }
     return 'No data';
   };
+
+  const getDashboardLastUpdated = (dashboard: Dashboard): string => {
+    let times: string[] = [];
+    dashboard.fields.forEach(f => {
+      const key = `${dashboard._id}_${f.name}`;
+      const data = widgetData[key];
+      if (data && data.length > 0) times.push(data[data.length - 1].timestamp);
+    });
+    if (times.length === 0) return formatIST(dashboard.updated_at);
+    const latest = times.sort().reverse()[0];
+    return formatIST(latest, { dateStyle: 'medium', timeStyle: 'short' });
+  };
+
+  const renderFieldsTable = (dashboard: Dashboard) => (
+    <TableContainer>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Field Name</TableCell>
+            <TableCell>Type</TableCell>
+            <TableCell>Unit</TableCell>
+            <TableCell align="right">Latest Value</TableCell>
+            <TableCell align="right">Last Updated</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {dashboard.fields.map(field => {
+            const key = `${dashboard._id}_${field.name}`;
+            const data = widgetData[key] || [];
+            const latest = data.length > 0 ? data[data.length - 1] : null;
+            return (
+              <TableRow key={field.name}>
+                <TableCell>{field.name}</TableCell>
+                <TableCell>{field.type}</TableCell>
+                <TableCell>{field.unit || '-'}</TableCell>
+                <TableCell align="right">{latest ? latest.value : 'N/A'}</TableCell>
+                <TableCell align="right">{latest ? formatIST(latest.timestamp, { dateStyle: 'medium', timeStyle: 'short' }) : 'No data'}</TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
 
   const renderWidget = (widget: Widget, dashboard: Dashboard) => {
     const field = dashboard.fields.find(f => f.name === widget.field);
@@ -480,29 +537,50 @@ const UserDashboard: React.FC = () => {
         <Box key={dashboard._id} sx={{ mb: 4 }}>
           <Card>
             <CardContent>
-              <Typography variant="h5" gutterBottom>
-                {dashboard.name}
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="h5" gutterBottom>
+                  {dashboard.name}
+                </Typography>
+                <Button variant="outlined" onClick={() => setViewingDashboard(dashboard)}>
+                  View
+                </Button>
+              </Box>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 {dashboard.description}
               </Typography>
-              <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-                <Chip label={`API Key: ${dashboard.api_key}`} size="small" variant="outlined" />
-                <Chip label={`Created: ${formatIST(dashboard.created_at)}`} size="small" />
-                <Chip label={`Updated: ${formatIST(dashboard.updated_at)}`} size="small" />
-              </Box>
-              
-              <Grid container spacing={3}>
-                {dashboard.widgets.map((widget) => (
-                  <Grid item xs={12} sm={6} md={4} key={widget.id}>
-                    {renderWidget(widget, dashboard)}
-                  </Grid>
-                ))}
-              </Grid>
             </CardContent>
           </Card>
         </Box>
       ))}
+
+      {/* Full-screen view dialog */}
+      <Dialog open={!!viewingDashboard} onClose={() => setViewingDashboard(null)} maxWidth="lg" fullWidth fullScreen>
+        <DialogTitle>
+          {viewingDashboard?.name}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 2 }}>
+            {viewingDashboard?.description}
+          </Typography>
+          <Typography variant="body2" color="primary" sx={{ mb: 2 }}>
+            Last Updated: {viewingDashboard ? getDashboardLastUpdated(viewingDashboard) : ''}
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+          {viewingDashboard && renderFieldsTable(viewingDashboard)}
+          <Divider sx={{ my: 2 }} />
+          <Typography variant="h6" sx={{ mb: 2 }}>Widgets</Typography>
+          <Grid container spacing={3}>
+            {viewingDashboard?.widgets.map((widget) => (
+              <Grid item xs={12} sm={6} md={4} key={widget.id}>
+                {renderWidget(widget, viewingDashboard)}
+              </Grid>
+            ))}
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setViewingDashboard(null)} variant="contained">Close</Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

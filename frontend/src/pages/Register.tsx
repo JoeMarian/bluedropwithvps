@@ -22,19 +22,19 @@ import {
   Email,
   Lock,
   Person,
-  Business,
   CheckCircle,
   WaterDrop
+  
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
+import ReCAPTCHA from 'react-google-recaptcha'
 
 const Register: React.FC = () => {
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     password: '',
-    confirmPassword: '',
-    company: ''
+    confirmPassword: ''
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -42,10 +42,11 @@ const Register: React.FC = () => {
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
   const [activeStep, setActiveStep] = useState(0)
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null)
   const { register } = useAuth()
   const navigate = useNavigate()
 
-  const steps = ['Account Details', 'Company Info', 'Verification']
+  const steps = ['Account Details', 'Human Verification', 'Verification']
 
   const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [field]: e.target.value }))
@@ -64,13 +65,17 @@ const Register: React.FC = () => {
       setLoading(false)
       return
     }
-
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters long')
       setLoading(false)
       return
     }
-
+    // reCAPTCHA validation
+    if (!recaptchaToken) {
+      setError('Please complete the reCAPTCHA to continue.')
+      setLoading(false)
+      return
+    }
     try {
       await register(formData.username, formData.email, formData.password)
       setSuccess('Registration successful! Please check your email for verification.')
@@ -378,25 +383,18 @@ const Register: React.FC = () => {
               {activeStep === 1 && (
                 <Box>
                   <Typography variant="h6" sx={{ mb: 3, color: 'primary.main' }}>
-                    Company Information
+                    Human Verification
                   </Typography>
-                  
-                  <TextField
-                    fullWidth
-                    label="Company Name"
-                    value={formData.company}
-                    onChange={handleChange('company')}
-                    sx={{ mb: 3 }}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Business sx={{ color: 'primary.main' }} />
-                        </InputAdornment>
-                      ),
-                    }}
-                    variant="outlined"
-                  />
-
+                  <Typography variant="body2" sx={{ mb: 2 }}>
+                    Please complete the reCAPTCHA below to verify you are not a robot:
+                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+                    <ReCAPTCHA
+                      sitekey="6Lc4lWsrAAAAAJZMSy7ZQlb0WX4LeMTWEmT_qd_m"
+                      onChange={(token: string | null) => setRecaptchaToken(token)}
+                      onExpired={() => setRecaptchaToken(null)}
+                    />
+                  </Box>
                   <Box sx={{ display: 'flex', gap: 2 }}>
                     <Button
                       variant="outlined"
@@ -501,7 +499,7 @@ const Register: React.FC = () => {
               fontSize: '0.875rem'
             }}
           >
-            © 2024 TankManage by TeamSKRN. All rights reserved.
+          TankManage by TeamSKRN.
           </Typography>
         </Box>
       </Container>

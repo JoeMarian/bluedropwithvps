@@ -47,7 +47,7 @@ async def get_users(
             detail=f"Failed to fetch users: {str(e)}"
         )
 
-@router.get("/pending", response_model=List[User])
+@router.get("/pending/", response_model=List[User])
 async def get_pending_users(
     current_user: User = Depends(get_current_admin_user),
 ) -> Any:
@@ -85,6 +85,7 @@ async def get_pending_users(
         )
 
 @router.put("/{user_id}/approve")
+@router.put("/{user_id}/approve/")
 async def approve_user(
     user_id: str,
     current_user: User = Depends(get_current_admin_user),
@@ -132,6 +133,7 @@ async def approve_user(
         )
 
 @router.put("/{user_id}/reject")
+@router.put("/{user_id}/reject/")
 async def reject_user(
     user_id: str,
     current_user: User = Depends(get_current_admin_user),
@@ -178,7 +180,8 @@ async def reject_user(
             detail=f"Failed to reject user: {str(e)}"
         )
 
-@router.delete("/users/{user_id}")
+@router.delete("/{user_id}")
+@router.delete("/{user_id}/")
 async def delete_user(
     user_id: str,
     current_user: User = Depends(get_current_admin_user),

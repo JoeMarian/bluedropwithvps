@@ -50,8 +50,8 @@ const UserManagement: React.FC = () => {
     try {
       setLoading(true);
       const [allUsersResponse, pendingUsersResponse] = await Promise.all([
-        api.get('/users'),
-        api.get('/users/pending')
+        api.get('/users/'),
+        api.get('/users/pending/')
       ]);
 
       setUsers(allUsersResponse.data);
@@ -91,7 +91,7 @@ const UserManagement: React.FC = () => {
     }
 
     try {
-      await api.delete(`/users/${userId}`);
+      await api.delete(`/users/${userId}/`);
       await fetchUsers();
     } catch (error: any) {
       console.error('Error deleting user:', error);

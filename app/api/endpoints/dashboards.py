@@ -163,6 +163,17 @@ async def create_dashboard(
         dashboard_result = await mongodb.get_collection("dashboards").insert_one(dashboard_data)
         dashboard_data["_id"] = str(dashboard_result.inserted_id)
         
+        # Insert initial data points for each field if value is not None (including zero)
+        for field in dashboard_data.get("fields", []):
+            if "value" in field and field["value"] is not None:
+                await mongodb.get_collection("data_points").insert_one({
+                    "dashboard_id": str(dashboard_data["_id"]),
+                    "field_name": field["name"],
+                    "value": field["value"],
+                    "timestamp": now,
+                    "metadata": {"source": "dashboard_creation"}
+                })
+        
         # Convert datetime objects to ISO format strings for JSON response
         response_data = {
             **dashboard_data,
@@ -245,6 +256,33 @@ async def get_dashboards(
                     ts = ts.astimezone(IST_TIMEZONE)
                 dashboard["updated_at"] = ts.isoformat()
             
+            # Ensure last_update is included for each field
+            if "fields" in dashboard:
+                for field in dashboard["fields"]:
+                    # If last_update is missing or None, fetch from latest data point
+                    if not field.get("last_update"):
+                        latest_dp = await mongodb.get_collection("data_points").find({
+                            "dashboard_id": str(dashboard["_id"]),
+                            "field_name": field["name"]
+                        }).sort("timestamp", -1).limit(1).to_list(length=1)
+                        if latest_dp:
+                            ts = latest_dp[0]["timestamp"]
+                            if hasattr(ts, "tzinfo") and ts.tzinfo is None:
+                                ts = ts.replace(tzinfo=timezone.utc).astimezone(IST_TIMEZONE)
+                            elif hasattr(ts, "tzinfo"):
+                                ts = ts.astimezone(IST_TIMEZONE)
+                            field["last_update"] = ts.isoformat()
+                        else:
+                            field["last_update"] = None
+                    else:
+                        ts = field["last_update"]
+                        if ts and hasattr(ts, "tzinfo"):
+                            if ts.tzinfo is None:
+                                ts = ts.replace(tzinfo=timezone.utc).astimezone(IST_TIMEZONE)
+                            else:
+                                ts = ts.astimezone(IST_TIMEZONE)
+                            field["last_update"] = ts.isoformat()
+            
             result.append(dashboard)
         
         print("Returning dashboards:", len(result))
@@ -311,6 +349,33 @@ async def get_my_dashboards(
                     ts = ts.astimezone(IST_TIMEZONE)
                 dashboard["updated_at"] = ts.isoformat()
             
+            # Ensure last_update is included for each field
+            if "fields" in dashboard:
+                for field in dashboard["fields"]:
+                    # If last_update is missing or None, fetch from latest data point
+                    if not field.get("last_update"):
+                        latest_dp = await mongodb.get_collection("data_points").find({
+                            "dashboard_id": str(dashboard["_id"]),
+                            "field_name": field["name"]
+                        }).sort("timestamp", -1).limit(1).to_list(length=1)
+                        if latest_dp:
+                            ts = latest_dp[0]["timestamp"]
+                            if hasattr(ts, "tzinfo") and ts.tzinfo is None:
+                                ts = ts.replace(tzinfo=timezone.utc).astimezone(IST_TIMEZONE)
+                            elif hasattr(ts, "tzinfo"):
+                                ts = ts.astimezone(IST_TIMEZONE)
+                            field["last_update"] = ts.isoformat()
+                        else:
+                            field["last_update"] = None
+                    else:
+                        ts = field["last_update"]
+                        if ts and hasattr(ts, "tzinfo"):
+                            if ts.tzinfo is None:
+                                ts = ts.replace(tzinfo=timezone.utc).astimezone(IST_TIMEZONE)
+                            else:
+                                ts = ts.astimezone(IST_TIMEZONE)
+                            field["last_update"] = ts.isoformat()
+            
             result.append(dashboard)
         
         print("Returning user dashboards:", len(result))
@@ -369,6 +434,33 @@ async def get_dashboard(
                 ts = ts.astimezone(IST_TIMEZONE)
             dashboard["updated_at"] = ts.isoformat()
         
+        # Ensure last_update is included for each field
+        if "fields" in dashboard:
+            for field in dashboard["fields"]:
+                # If last_update is missing or None, fetch from latest data point
+                if not field.get("last_update"):
+                    latest_dp = await mongodb.get_collection("data_points").find({
+                        "dashboard_id": str(dashboard["_id"]),
+                        "field_name": field["name"]
+                    }).sort("timestamp", -1).limit(1).to_list(length=1)
+                    if latest_dp:
+                        ts = latest_dp[0]["timestamp"]
+                        if hasattr(ts, "tzinfo") and ts.tzinfo is None:
+                            ts = ts.replace(tzinfo=timezone.utc).astimezone(IST_TIMEZONE)
+                        elif hasattr(ts, "tzinfo"):
+                            ts = ts.astimezone(IST_TIMEZONE)
+                        field["last_update"] = ts.isoformat()
+                    else:
+                        field["last_update"] = None
+                else:
+                    ts = field["last_update"]
+                    if ts and hasattr(ts, "tzinfo"):
+                        if ts.tzinfo is None:
+                            ts = ts.replace(tzinfo=timezone.utc).astimezone(IST_TIMEZONE)
+                        else:
+                            ts = ts.astimezone(IST_TIMEZONE)
+                        field["last_update"] = ts.isoformat()
+        
         return Dashboard(**{**dashboard, "_id": str(dashboard["_id"])})
     except HTTPException:
         raise
@@ -407,21 +499,35 @@ async def update_dashboard(
         update_data = dashboard_update.dict(exclude_unset=True)
         update_data["updated_at"] = datetime.now(IST_TIMEZONE)
         
-        # Ensure last_value is updated for each field if value is present
+        # Ensure last_value and last_update are updated for all fields with a value
         if "fields" in update_data:
             new_fields = []
+            now = datetime.now(IST_TIMEZONE)
+            # Get current field values from the dashboard
+            current_fields = {f["name"]: f for f in dashboard.get("fields", [])}
             for field in update_data["fields"]:
                 new_field = dict(field)
+                print(f"Processing field: {new_field['name']}, value: {new_field.get('value')}")
+                current_value = current_fields.get(new_field["name"], {}).get("last_value")
+                current_last_update = current_fields.get(new_field["name"], {}).get("last_update")
                 if "value" in new_field and new_field["value"] is not None:
-                    new_field["last_value"] = new_field["value"]
-                    # Insert a new data point for this field
-                    await mongodb.get_collection("data_points").insert_one({
-                        "dashboard_id": str(object_id),
-                        "field_name": new_field["name"],
-                        "value": new_field["value"],
-                        "timestamp": datetime.now(IST_TIMEZONE),
-                        "metadata": {"source": "dashboard_update"}
-                    })
+                    if new_field["value"] != current_value:
+                        new_field["last_value"] = new_field["value"]
+                        new_field["last_update"] = now
+                        print(f"Inserting data point for field: {new_field['name']} with value: {new_field['value']}")
+                        await mongodb.get_collection("data_points").insert_one({
+                            "dashboard_id": str(object_id),
+                            "field_name": new_field["name"],
+                            "value": new_field["value"],
+                            "timestamp": now,
+                            "metadata": {"source": "dashboard_update"}
+                        })
+                    else:
+                        new_field["last_value"] = current_value
+                        new_field["last_update"] = current_last_update
+                else:
+                    new_field["last_value"] = current_value
+                    new_field["last_update"] = current_last_update
                 new_fields.append(new_field)
             update_data["fields"] = new_fields
         
@@ -471,6 +577,23 @@ async def update_dashboard(
             else:
                 ts = ts.astimezone(IST_TIMEZONE)
             updated_dashboard["updated_at"] = ts.isoformat()
+        # Ensure last_update is included for each field using latest data point
+        if "fields" in updated_dashboard:
+            for field in updated_dashboard["fields"]:
+                latest_dp = await mongodb.get_collection("data_points").find({
+                    "dashboard_id": str(updated_dashboard["_id"]),
+                    "field_name": field["name"]
+                }).sort("timestamp", -1).limit(1).to_list(length=1)
+                if latest_dp:
+                    ts = latest_dp[0]["timestamp"]
+                    if hasattr(ts, "tzinfo") and ts.tzinfo is None:
+                        ts = ts.replace(tzinfo=timezone.utc).astimezone(IST_TIMEZONE)
+                    elif hasattr(ts, "tzinfo"):
+                        ts = ts.astimezone(IST_TIMEZONE)
+                    field["last_update"] = ts.isoformat()
+                else:
+                    field["last_update"] = None
+        
         return Dashboard(**{**updated_dashboard, "_id": str(updated_dashboard["_id"])})
     except HTTPException:
         raise

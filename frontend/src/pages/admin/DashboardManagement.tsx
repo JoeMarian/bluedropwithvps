@@ -103,7 +103,7 @@ const DashboardManagement: React.FC = () => {
   const fetchDashboards = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/dashboards');
+      const response = await api.get('/dashboards/');
       console.log('Dashboards response:', response.data);
       setDashboards(response.data);
       setError(null);
@@ -117,7 +117,7 @@ const DashboardManagement: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await api.get('/users');
+      const response = await api.get('/users/');
       setUsers(response.data);
     } catch (err) {
       console.error('Error fetching users:', err);
@@ -133,13 +133,12 @@ const DashboardManagement: React.FC = () => {
     try {
       // Filter out empty fields
       const validFields = formData.fields.filter(field => field.name.trim() !== '');
-      
       const dashboardData = {
         ...formData,
         fields: validFields
       };
-      
-      await api.post('/dashboards', dashboardData);
+      console.log('Creating dashboard with data:', dashboardData);
+      await api.post('/dashboards/', dashboardData);
       setOpenDialog(false);
       resetForm();
       fetchDashboards();
@@ -151,15 +150,13 @@ const DashboardManagement: React.FC = () => {
 
   const handleUpdateDashboard = async () => {
     if (!editingDashboard) return;
-    
     try {
       const validFields = formData.fields.filter(field => field.name.trim() !== '');
-      
       const dashboardData = {
         ...formData,
         fields: validFields
       };
-      
+      console.log('Updating dashboard with data:', dashboardData);
       await api.put(`/dashboards/${editingDashboard._id}`, dashboardData);
       setOpenDialog(false);
       setEditingDashboard(null);
@@ -184,8 +181,8 @@ const DashboardManagement: React.FC = () => {
     
     try {
       console.log('Attempting to delete dashboard with ID:', dashboardId);
-      const response = await api.delete(`/dashboards/${dashboardId}`);
-      console.log('Delete response:', response.data);
+      const deleteResponse = await api.delete(`/dashboards/${dashboardId}`);
+      console.log('Delete response:', deleteResponse.data);
       fetchDashboards();
     } catch (err: any) {
       console.error('Error deleting dashboard:', err);
@@ -467,8 +464,12 @@ const DashboardManagement: React.FC = () => {
                         <TextField
                           label="Value"
                           type="number"
-                          value={field.value || ''}
-                          onChange={(e) => updateField(index, { value: parseFloat(e.target.value) || undefined })}
+                          required
+                          value={field.value !== undefined ? field.value : ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            updateField(index, { value: val === '' ? undefined : parseFloat(val) });
+                          }}
                           sx={{ width: 100 }}
                         />
                       )}

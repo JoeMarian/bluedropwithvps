@@ -20,7 +20,7 @@ import {
 import axios from 'axios'
 
 interface User {
-  id: string
+  _id: string
   username: string
   email: string
   is_verified: boolean
@@ -37,7 +37,7 @@ function AdminUsers() {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get('/api/v1/users')
+      const response = await axios.get('/api/v1/users/')
       setUsers(response.data)
     } catch (error) {
       console.error('Error fetching users:', error)
@@ -93,7 +93,7 @@ function AdminUsers() {
           </TableHead>
           <TableBody>
             {users.map((user) => (
-              <TableRow key={user.id}>
+              <TableRow key={user._id}>
                 <TableCell>{user.username}</TableCell>
                 <TableCell>{user.email}</TableCell>
                 <TableCell>
@@ -112,7 +112,7 @@ function AdminUsers() {
                         <Tooltip title="Approve">
                           <IconButton
                             color="success"
-                            onClick={() => handleApprove(user.id)}
+                            onClick={() => handleApprove(user._id)}
                           >
                             <CheckIcon />
                           </IconButton>
@@ -122,7 +122,7 @@ function AdminUsers() {
                         <Tooltip title="Disapprove">
                           <IconButton
                             color="error"
-                            onClick={() => handleDisapprove(user.id)}
+                            onClick={() => handleDisapprove(user._id)}
                           >
                             <CloseIcon />
                           </IconButton>
@@ -131,7 +131,7 @@ function AdminUsers() {
                       <Tooltip title="Delete">
                         <IconButton
                           color="error"
-                          onClick={() => handleDelete(user.id)}
+                          onClick={() => handleDelete(user._id)}
                         >
                           <DeleteIcon />
                         </IconButton>

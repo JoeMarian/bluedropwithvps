@@ -2,8 +2,8 @@
 #include <PubSubClient.h>
 
 // WiFi credentials - WORKING CONFIGURATION
-const char* ssid = "Joe Marian iPhone";
-const char* password = "dontwanttosaythis";
+const char* ssid = "";
+const char* password = "";
 
 // MQTT Broker settings - YOUR COMPUTER'S IP ADDRESS
 const char* mqtt_server = "10.45.13.149";  // Your computer's IP address

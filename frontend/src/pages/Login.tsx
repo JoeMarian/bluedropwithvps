@@ -294,7 +294,7 @@ const Login: React.FC = () => {
               fontSize: '0.875rem'
             }}
           >
-            © 2024 TankManage by TeamSKRN. All rights reserved.
+          TankManage by TeamSKRN.
           </Typography>
         </Box>
       </Container>

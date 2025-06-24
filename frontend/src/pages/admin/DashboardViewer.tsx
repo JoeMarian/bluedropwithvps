@@ -30,12 +30,14 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { formatIST } from '../../utils/date';
+import { API_BASE_URL } from '../../config/api';
 
 interface DashboardField {
   name: string;
   type: string;
   unit?: string;
   value?: number;
+  last_update?: string;
 }
 
 interface Widget {
@@ -97,7 +99,7 @@ const DashboardViewer: React.FC<DashboardViewerProps> = ({ dashboard, onClose })
       }
 
       const response = await fetch(
-        `http://localhost:8000/api/v1/dashboards/${dashboard._id}`,
+        `${API_BASE_URL}/dashboards/${dashboard._id}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -152,7 +154,7 @@ const DashboardViewer: React.FC<DashboardViewerProps> = ({ dashboard, onClose })
       }
 
       const response = await fetch(
-        `http://localhost:8000/api/v1/dashboard/${dashboard._id}/field/${fieldName}/data?hours=24&limit=50`,
+        `${API_BASE_URL}/dashboard/${dashboard._id}/field/${fieldName}/data?hours=24&limit=50`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -194,11 +196,15 @@ const DashboardViewer: React.FC<DashboardViewerProps> = ({ dashboard, onClose })
     return 0;
   };
 
-  const getLastUpdateTime = (fieldName: string): string => {
+  const getFieldLastUpdate = (fieldName: string): string => {
+    const field = dashboardData.fields.find(f => f.name === fieldName);
+    if (field && field.last_update) {
+      return formatIST(field.last_update, { dateStyle: 'medium', timeStyle: 'short' });
+    }
+    // Fallback: use latest data point timestamp if available
     const data = widgetData[fieldName];
     if (data && data.length > 0) {
-      const latestTimestamp = data[data.length - 1].timestamp;
-      return formatIST(latestTimestamp, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      return formatIST(data[data.length - 1].timestamp, { dateStyle: 'medium', timeStyle: 'short' });
     }
     return 'No data';
   };
@@ -384,7 +390,7 @@ const DashboardViewer: React.FC<DashboardViewerProps> = ({ dashboard, onClose })
           
           <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
             <Typography variant="caption" color="text.secondary">
-              Last Updated: {getLastUpdateTime(widget.field)}
+              Last Updated: {getFieldLastUpdate(widget.field)}
             </Typography>
             {data.length > 0 && (
               <Typography variant="caption" color="text.secondary" display="block">
@@ -399,10 +405,10 @@ const DashboardViewer: React.FC<DashboardViewerProps> = ({ dashboard, onClose })
 
   const renderFieldCard = (field: DashboardField) => {
     // Get the latest data for this field to show actual last update time
-    const fieldData = widgetData[field.name] || [];
-    const lastUpdateTime = fieldData.length > 0 
-      ? formatIST(fieldData[fieldData.length - 1].timestamp, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-      : 'No data';
+    // const fieldData = widgetData[field.name] || [];
+    // const lastUpdateTime = fieldData.length > 0 
+    //   ? formatIST(fieldData[fieldData.length - 1].timestamp, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    //   : 'No data';
 
     return (
       <Card key={field.name} sx={{ height: '100%' }}>
@@ -419,7 +425,7 @@ const DashboardViewer: React.FC<DashboardViewerProps> = ({ dashboard, onClose })
           <Chip label={field.type} size="small" sx={{ mt: 1 }} />
           <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
             <Typography variant="caption" color="text.secondary">
-              Last Updated: {lastUpdateTime}
+              Last Updated: {getFieldLastUpdate(field.name)}
             </Typography>
           </Box>
         </CardContent>

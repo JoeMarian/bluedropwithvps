@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:6.0
+    container_name: mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - waternet
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: mosquitto
+    restart: always
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./password_file:/mosquitto/config/password_file:ro
+    networks:
+      - waternet
+
+  backend:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    container_name: backend
+    env_file:
+      - .env.docker
+    depends_on:
+      - mongo
+      - mosquitto
+    ports:
+      - "8001:8000"
+    networks:
+      - waternet
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    depends_on:
+      - backend
+    ports:
+      - "5174:80"
+    networks:
+      - waternet
+
+networks:
+  waternet:
+    driver: bridge 

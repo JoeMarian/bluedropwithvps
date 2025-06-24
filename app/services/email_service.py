@@ -54,7 +54,8 @@ class EmailService:
 
     def send_verification_email(self, user_email: str, username: str, verification_token: str) -> bool:
         """Send email verification email"""
-        verification_url = f"http://localhost:5174/verify-email/{verification_token}"
+        frontend_url = getattr(settings, 'FRONTEND_URL', None) or os.getenv('FRONTEND_URL', 'http://localhost:5174')
+        verification_url = f"{frontend_url}/verify-email/{verification_token}"
         subject = "Verify Your Email - TankManage by TeamSKRN"
         html_content = f"""
         <html>
