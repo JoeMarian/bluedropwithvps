@@ -1,11 +1,15 @@
+# app/api/endpoints/data.py
+
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from app.db.mongodb import mongodb
 from app.models.data import DataPointResponse
 from app.api.deps import get_current_user
 from app.models.user import User
 from bson import ObjectId
+# Removed BaseModel import as DeviceIngestRequest is moved
+# Removed DeviceIngestRequest import as it's moved
 
 # IST timezone (UTC+5:30)
 IST_TIMEZONE = timezone(timedelta(hours=5, minutes=30))
@@ -28,27 +32,27 @@ async def get_field_data(
         dashboard = await mongodb.get_collection("dashboards").find_one({"_id": ObjectId(dashboard_id)})
         if not dashboard:
             raise HTTPException(status_code=404, detail="Dashboard not found")
-        
+
         # Check if user has access to this dashboard
         if not dashboard.get("is_public", False) and str(current_user.id) not in dashboard.get("assigned_users", []):
             raise HTTPException(status_code=403, detail="Access denied to this dashboard")
-        
+
         # Check if field exists in dashboard
         field_exists = any(field["name"] == field_name for field in dashboard.get("fields", []))
         if not field_exists:
             raise HTTPException(status_code=404, detail="Field not found in dashboard")
-        
+
         # Calculate time range
         end_time = datetime.now(IST_TIMEZONE)
         start_time = end_time - timedelta(hours=hours)
-        
+
         # Fetch data points
         cursor = mongodb.get_collection("data_points").find({
             "dashboard_id": dashboard_id,
             "field_name": field_name,
             "timestamp": {"$gte": start_time, "$lte": end_time}
         }).sort("timestamp", -1).limit(limit)
-        
+
         data_points = []
         try:
             async for doc in cursor:
@@ -66,20 +70,25 @@ async def get_field_data(
                     metadata=doc.get("metadata")
                 ))
         except Exception as cursor_error:
-            print(f"Error iterating cursor: {cursor_error}")
-            # Return empty array if there's an issue with data
+            print(f"Error iterating cursor for dashboard {dashboard_id}, field {field_name}: {cursor_error}")
+            # If there's an issue with data, it's better to return an empty array
+            # or raise a more specific error, rather than a generic 500 if data is malformed.
+            # For now, returning empty array as per original logic.
             return []
-        
-        # Reverse to get chronological order
+
+        # Reverse to get chronological order (oldest first)
         data_points.reverse()
-        
+
         return data_points
-        
+
+    except HTTPException as http_exc:
+        # Re-raise HTTPException directly
+        raise http_exc
     except Exception as e:
         import traceback
-        print(f"Error fetching data for dashboard {dashboard_id}, field {field_name}: {str(e)}")
+        print(f"CRITICAL ERROR fetching data for dashboard {dashboard_id}, field {field_name}: {str(e)}")
         print(f"Traceback: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Error fetching data: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred while fetching field data: {str(e)}")
 
 @router.get("/dashboard/{dashboard_id}/data", response_model=dict)
 async def get_dashboard_data(
@@ -96,29 +105,29 @@ async def get_dashboard_data(
         dashboard = await mongodb.get_collection("dashboards").find_one({"_id": ObjectId(dashboard_id)})
         if not dashboard:
             raise HTTPException(status_code=404, detail="Dashboard not found")
-        
+
         # Check if user has access to this dashboard
         if not dashboard.get("is_public", False) and str(current_user.id) not in dashboard.get("assigned_users", []):
             raise HTTPException(status_code=403, detail="Access denied to this dashboard")
-        
+
         # Calculate time range
         end_time = datetime.now(IST_TIMEZONE)
         start_time = end_time - timedelta(hours=hours)
-        
+
         # Get all fields in the dashboard
         fields = dashboard.get("fields", [])
         result = {}
-        
+
         for field in fields:
             field_name = field["name"]
-            
+
             # Fetch data points for this field
             cursor = mongodb.get_collection("data_points").find({
                 "dashboard_id": dashboard_id,
                 "field_name": field_name,
                 "timestamp": {"$gte": start_time, "$lte": end_time}
             }).sort("timestamp", -1).limit(limit)
-            
+
             field_data = []
             async for doc in cursor:
                 # Convert timestamp to IST and serialize as ISO string
@@ -133,11 +142,11 @@ async def get_dashboard_data(
                     "timestamp": ts.isoformat(),
                     "metadata": doc.get("metadata")
                 })
-            
-            # Reverse to get chronological order
+
+            # Reverse to get chronological order (oldest first)
             field_data.reverse()
             result[field_name] = field_data
-        
+
         return {
             "dashboard_id": dashboard_id,
             "dashboard_name": dashboard["name"],
@@ -148,12 +157,15 @@ async def get_dashboard_data(
             },
             "fields": result
         }
-        
+
+    except HTTPException as http_exc:
+        # Re-raise HTTPException directly
+        raise http_exc
     except Exception as e:
         import traceback
-        print(f"Error fetching data for dashboard {dashboard_id}: {str(e)}")
+        print(f"CRITICAL ERROR fetching data for dashboard {dashboard_id}: {str(e)}")
         print(f"Traceback: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Error fetching dashboard data: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred while fetching dashboard data: {str(e)}")
 
 @router.post("/dashboard/{dashboard_id}/field/{field_name}/data")
 async def add_data_point(
@@ -163,23 +175,23 @@ async def add_data_point(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Add a data point for a specific field (for testing purposes)
+    Add a data point for a specific field (for testing purposes or manual input)
     """
     try:
         # Validate dashboard exists and user has access
         dashboard = await mongodb.get_collection("dashboards").find_one({"_id": ObjectId(dashboard_id)})
         if not dashboard:
             raise HTTPException(status_code=404, detail="Dashboard not found")
-        
+
         # Check if user has access to this dashboard
         if not dashboard.get("is_public", False) and str(current_user.id) not in dashboard.get("assigned_users", []):
             raise HTTPException(status_code=403, detail="Access denied to this dashboard")
-        
+
         # Check if field exists in dashboard
         field_exists = any(field["name"] == field_name for field in dashboard.get("fields", []))
         if not field_exists:
             raise HTTPException(status_code=404, detail="Field not found in dashboard")
-        
+
         # Create data point with IST timestamp
         current_time_ist = datetime.now(IST_TIMEZONE)
         data_point = {
@@ -189,10 +201,10 @@ async def add_data_point(
             "timestamp": current_time_ist,
             "metadata": {"source": "manual", "user_id": str(current_user.id)}
         }
-        
+
         # Store in database
         result = await mongodb.get_collection("data_points").insert_one(data_point)
-        
+
         # Update dashboard field with latest value
         await mongodb.get_collection("dashboards").update_one(
             {"_id": ObjectId(dashboard_id), "fields.name": field_name},
@@ -204,19 +216,22 @@ async def add_data_point(
                 }
             }
         )
-        
+
         return {
             "message": "Data point added successfully",
             "data_point_id": str(result.inserted_id),
             "value": value,
             "timestamp": data_point["timestamp"].isoformat()
         }
-        
+
+    except HTTPException as http_exc:
+        # Re-raise HTTPException directly
+        raise http_exc
     except Exception as e:
         import traceback
-        print(f"Error adding data point for dashboard {dashboard_id}, field {field_name}: {str(e)}")
+        print(f"CRITICAL ERROR adding data point for dashboard {dashboard_id}, field {field_name}: {str(e)}")
         print(f"Traceback: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Error adding data point: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred while adding data point: {str(e)}")
 
 @router.get("/test-data/{dashboard_id}")
 async def test_dashboard_data(
@@ -231,11 +246,11 @@ async def test_dashboard_data(
         dashboard = await mongodb.get_collection("dashboards").find_one({"_id": ObjectId(dashboard_id)})
         if not dashboard:
             return {"error": "Dashboard not found"}
-        
+
         # Check fields
         fields = dashboard.get("fields", [])
         field_names = [field["name"] for field in fields]
-        
+
         # Check data points for each field
         data_counts = {}
         for field_name in field_names:
@@ -244,7 +259,7 @@ async def test_dashboard_data(
                 "field_name": field_name
             })
             data_counts[field_name] = count
-        
+
         return {
             "dashboard_id": dashboard_id,
             "dashboard_name": dashboard.get("name"),
@@ -254,9 +269,26 @@ async def test_dashboard_data(
                 "dashboard_id": dashboard_id
             })
         }
-        
+
+    except HTTPException as http_exc:
+        # Re-raise HTTPException directly
+        raise http_exc
     except Exception as e:
         import traceback
-        print(f"Error in test endpoint: {str(e)}")
+        print(f"CRITICAL ERROR in test endpoint for dashboard {dashboard_id}: {str(e)}")
         print(f"Traceback: {traceback.format_exc()}")
-        return {"error": str(e)} 
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred during test data retrieval: {str(e)}")
+
+# The following code block was moved to device_ingest.py:
+# IST_TIMEZONE = timezone(timedelta(hours=5, minutes=30))
+# router = APIRouter()
+# class DeviceIngestRequest(BaseModel):
+#     dashboard_id: str
+#     field_name: str
+#     value: float
+# @router.post("/device-ingest")
+# async def device_ingest(
+#     request: Request,
+#     payload: DeviceIngestRequest
+# ):
+#     # ... (rest of the device ingest logic)

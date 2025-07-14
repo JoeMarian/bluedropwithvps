@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     
     # Admin Configuration
     ADMIN_USERNAME: str = os.getenv("ADMIN_USERNAME", "admin")
-    ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "joemarian3010@gmail.com")
+    ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "bluedrop.iitm@gmail.com")
     ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "admin")
     
     # Email Configuration
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     SMTP_USER: str = os.getenv("SMTP_USER", "")
     SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
     EMAIL_FROM: str = os.getenv("EMAIL_FROM", "")
-    EMAIL_FROM_NAME: str = os.getenv("EMAIL_FROM_NAME", "TankManage")
+    EMAIL_FROM_NAME: str = os.getenv("EMAIL_FROM_NAME", "BlueDrop")
     SMTP_TLS: bool = os.getenv("SMTP_TLS", "True").lower() == "true"
     
     # MQTT Configuration

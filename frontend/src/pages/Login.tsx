@@ -1,3 +1,8 @@
+// Login.tsx
+// Page for user authentication (login) in BlueDrop.
+// Handles username/password login, error handling, and redirects based on user role.
+// Uses Material UI for UI components and custom AuthContext for authentication logic.
+
 import React, { useState } from 'react';
 import {
   Box,
@@ -22,6 +27,10 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -31,6 +40,10 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotMsg, setForgotMsg] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -237,24 +250,21 @@ const Login: React.FC = () => {
                 type="submit"
                 fullWidth
                 variant="contained"
+                color="primary"
                 size="large"
+                sx={{ mt: 3, mb: 2, py: 1.5, fontWeight: 600 }}
                 disabled={loading}
-                sx={{
-                  py: 1.5,
-                  mb: 3,
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  '&:hover': {
-                    background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
-                    transform: 'translateY(-1px)',
-                    boxShadow: '0 8px 25px rgba(102, 126, 234, 0.3)'
-                  },
-                  transition: 'all 0.3s ease'
-                }}
-                startIcon={loading ? <div className="loading-spinner" /> : <LoginIcon />}
+                startIcon={<LoginIcon />}
               >
                 {loading ? 'Signing In...' : 'Sign In'}
               </Button>
             </form>
+
+            <Box sx={{ textAlign: 'right', mt: 1 }}>
+              <Button variant="text" size="small" onClick={() => setForgotOpen(true)} sx={{ textTransform: 'none' }}>
+                Forgot Password?
+              </Button>
+            </Box>
 
             <Divider sx={{ my: 3 }}>
               <Typography variant="body2" color="text.secondary">
@@ -298,6 +308,48 @@ const Login: React.FC = () => {
           </Typography>
         </Box>
       </Container>
+
+      <Dialog open={forgotOpen} onClose={() => setForgotOpen(false)}>
+        <DialogTitle>Forgot Password</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 2 }}>Enter your email address. If it exists, you'll receive a password reset link.</Typography>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Email Address"
+            type="email"
+            fullWidth
+            value={forgotEmail}
+            onChange={e => setForgotEmail(e.target.value)}
+            disabled={forgotLoading}
+          />
+          {forgotMsg && <Alert severity="info" sx={{ mt: 2 }}>{forgotMsg}</Alert>}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setForgotOpen(false)} disabled={forgotLoading}>Cancel</Button>
+          <Button
+            onClick={async () => {
+              setForgotLoading(true);
+              setForgotMsg('');
+              try {
+                await fetch('/api/v1/forgot-password', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email: forgotEmail })
+                });
+                setForgotMsg('If the email exists, a reset link has been sent.');
+              } catch {
+                setForgotMsg('If the email exists, a reset link has been sent.');
+              } finally {
+                setForgotLoading(false);
+              }
+            }}
+            disabled={!forgotEmail || forgotLoading}
+          >
+            Send Reset Link
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

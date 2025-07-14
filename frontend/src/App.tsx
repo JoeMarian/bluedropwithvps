@@ -9,6 +9,7 @@ import Register from './pages/Register';
 import EmailVerification from './pages/EmailVerification';
 import AdminDashboard from './pages/admin/Dashboard';
 import UserDashboard from './pages/user/UserDashboard';
+import ResetPassword from './pages/ResetPassword';
 import './App.css';
 
 // Create a modern, professional theme
@@ -161,6 +162,7 @@ const AppRoutes: React.FC = () => {
             ) : <Register />
           } />
           <Route path="/verify-email/:token" element={<EmailVerification />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route 
             path="/admin" 
             element={

@@ -192,7 +192,7 @@ const Register: React.FC = () => {
                   textShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }}
               >
-                TankManage
+                BlueDrop
               </Typography>
               <Typography
                 variant="subtitle1"
@@ -225,7 +225,7 @@ const Register: React.FC = () => {
               mb: 4
             }}
           >
-            Join TankManage to monitor and manage your water tanks efficiently
+            Join BlueDrop to monitor and manage your water tanks efficiently
           </Typography>
         </Box>
 
@@ -390,7 +390,7 @@ const Register: React.FC = () => {
                   </Typography>
                   <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
                     <ReCAPTCHA
-                      sitekey="6Lc4lWsrAAAAAJZMSy7ZQlb0WX4LeMTWEmT_qd_m"
+                      sitekey="6LdDtGsrAAAAAPRR3uvOE8gF2NgpUWObJpo-Ys3L"
                       onChange={(token: string | null) => setRecaptchaToken(token)}
                       onExpired={() => setRecaptchaToken(null)}
                     />
@@ -499,7 +499,7 @@ const Register: React.FC = () => {
               fontSize: '0.875rem'
             }}
           >
-          TankManage by TeamSKRN.
+          BlueDrop by TeamSKRN.
           </Typography>
         </Box>
       </Container>

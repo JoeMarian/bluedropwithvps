@@ -114,3 +114,7 @@ async def health_check():
 @app.get("/test-cors")
 async def test_cors():
     return {"message": "CORS is working!"}
+
+
+from app.api.endpoints.device_ingest import router as device_ingest_router
+app.include_router(device_ingest_router, prefix="/api/v1")

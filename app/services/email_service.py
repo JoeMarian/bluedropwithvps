@@ -1,3 +1,12 @@
+"""
+email_service.py - Email notification service for TankManage backend.
+
+This module provides:
+- SMTP integration for sending emails (verification, dashboard assignment, approval notifications)
+- HTML email templates for user actions
+- Centralized email sending logic for maintainability and reusability
+"""
+
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -56,7 +65,7 @@ class EmailService:
         """Send email verification email"""
         frontend_url = getattr(settings, 'FRONTEND_URL', None) or os.getenv('FRONTEND_URL', 'http://localhost:5174')
         verification_url = f"{frontend_url}/verify-email/{verification_token}"
-        subject = "Verify Your Email - TankManage by TeamSKRN"
+        subject = "Verify Your Email - BlueDrop by TeamSKRN"
         html_content = f"""
         <html>
         <head>
@@ -69,7 +78,7 @@ class EmailService:
         <body>
             <div class="container">
                 <h2>Verify Your Email</h2>
-                <p>Thank you for registering with TankManage. Please verify your email address by clicking the button below:</p>
+                <p>Thank you for registering with BlueDrop. Please verify your email address by clicking the button below:</p>
                 <a href="{verification_url}" class="button">Verify Email</a>
                 <p style="word-break: break-all; color: #666;">{verification_url}</p>
                 <p>This verification link will expire in 24 hours.</p>
@@ -141,7 +150,7 @@ class EmailService:
                     </ul>
                 </div>
                 <div class="footer">
-                    <p>This is an automated notification from TankManage by TeamSKRN.</p>
+                    <p>This is an automated notification from BlueDrop by TeamSKRN.</p>
                     <p>If you have any questions, please contact your administrator.</p>
                 </div>
             </div>
@@ -154,11 +163,11 @@ class EmailService:
     def send_approval_notification_email(self, user_email: str, username: str, approved: bool) -> bool:
         """Send user approval/rejection notification email"""
         if approved:
-            subject = "Account Approved - TankManage by TeamSKRN"
+            subject = "Account Approved - BlueDrop by TeamSKRN"
             status_text = "approved"
             color = "#4caf50"
         else:
-            subject = "Account Status - TankManage by TeamSKRN"
+            subject = "Account Status - BlueDrop by TeamSKRN"
             status_text = "not approved"
             color = "#f44336"
         
@@ -191,13 +200,40 @@ class EmailService:
                     <p>If you have any questions, please contact the administrator.</p>
                 </div>
                 <div class="footer">
-                    <p>This is an automated notification from TankManage by TeamSKRN.</p>
+                    <p>This is an automated notification from BlueDrop by TeamSKRN.</p>
                 </div>
             </div>
         </body>
         </html>
         """
         
+        return self.send_email(user_email, subject, html_content)
+
+    def send_password_reset_email(self, user_email: str, username: str, reset_token: str) -> bool:
+        frontend_url = getattr(settings, 'FRONTEND_URL', None) or os.getenv('FRONTEND_URL', 'http://localhost:5174')
+        reset_url = f"{frontend_url}/reset-password/{reset_token}"
+        subject = "Reset Your Password - BlueDrop by TeamSKRN"
+        html_content = f"""
+        <html>
+        <head>
+            <title>Password Reset</title>
+            <style>
+                .button {{ background-color: #2196f3; color: white; padding: 10px 20px; border: none; border-radius: 4px; text-decoration: none; font-size: 16px; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <h2>Password Reset Request</h2>
+                <p>Hello {username},</p>
+                <p>We received a request to reset your password. Click the button below to set a new password. This link will expire in 1 hour.</p>
+                <a href='{reset_url}' class='button'>Reset Password</a>
+                <p style='word-break: break-all; color: #666;'>{reset_url}</p>
+                <p>If you did not request this, you can safely ignore this email.</p>
+            </div>
+        </body>
+        </html>
+        """
         return self.send_email(user_email, subject, html_content)
 
 # Create a global instance
