@@ -12,7 +12,7 @@ const getApiBaseUrl = () => {
     const finalUrl = baseUrl.endsWith('/') ? `${baseUrl}api/v1` : `${baseUrl}/api/v1`;
     return finalUrl;
   }
-  return 'https://api.tankmanage.teamskrn.xyz/api/v1';
+  return 'https://api.tankmanage.teamskrn.xyz/api/v1'; // fallback for dev/other
 };
 
 export const API_BASE_URL = getApiBaseUrl();

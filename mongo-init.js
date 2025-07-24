@@ -1,5 +1,5 @@
 // MongoDB initialization script
-db = db.getSiblingDB('thingspeak_clone');
+db = db.getSiblingDB('bluedrop_cloudflare');
 
 // Create application user
 db.createUser({
@@ -8,7 +8,7 @@ db.createUser({
   roles: [
     {
       role: 'readWrite',
-      db: 'thingspeak_clone'
+      db: 'bluedrop_cloudflare'
     }
   ]
 });

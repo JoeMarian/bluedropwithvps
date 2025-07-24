@@ -2,9 +2,9 @@
 
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status, Body
 from app.db.mongodb import mongodb
-from app.models.data import DataPointResponse
+from app.models.data import DataPointResponse, DataPointCreate
 from app.api.deps import get_current_user
 from app.models.user import User
 from bson import ObjectId
@@ -171,11 +171,11 @@ async def get_dashboard_data(
 async def add_data_point(
     dashboard_id: str,
     field_name: str,
-    value: float,
+    payload: DataPointCreate = Body(...),
     current_user: User = Depends(get_current_user)
 ):
     """
-    Add a data point for a specific field (for testing purposes or manual input)
+    Add a data point for a specific field (for testing purposes or manual input, with required timestamp)
     """
     try:
         # Validate dashboard exists and user has access
@@ -183,45 +183,56 @@ async def add_data_point(
         if not dashboard:
             raise HTTPException(status_code=404, detail="Dashboard not found")
 
-        # Check if user has access to this dashboard
-        if not dashboard.get("is_public", False) and str(current_user.id) not in dashboard.get("assigned_users", []):
-            raise HTTPException(status_code=403, detail="Access denied to this dashboard")
+        # Only allow admins to add previous data
+        if not getattr(current_user, 'is_admin', False):
+            raise HTTPException(status_code=403, detail="Only admins can add previous data points")
 
         # Check if field exists in dashboard
         field_exists = any(field["name"] == field_name for field in dashboard.get("fields", []))
         if not field_exists:
             raise HTTPException(status_code=404, detail="Field not found in dashboard")
 
-        # Create data point with IST timestamp
-        current_time_ist = datetime.now(IST_TIMEZONE)
+        # Use provided timestamp
         data_point = {
             "dashboard_id": dashboard_id,
             "field_name": field_name,
-            "value": float(value),
-            "timestamp": current_time_ist,
+            "value": float(payload.value),
+            "timestamp": payload.timestamp,
             "metadata": {"source": "manual", "user_id": str(current_user.id)}
         }
 
         # Store in database
         result = await mongodb.get_collection("data_points").insert_one(data_point)
 
-        # Update dashboard field with latest value
-        await mongodb.get_collection("dashboards").update_one(
-            {"_id": ObjectId(dashboard_id), "fields.name": field_name},
-            {
-                "$set": {
-                    "fields.$.last_value": float(value),
-                    "fields.$.last_update": current_time_ist,
-                    "updated_at": current_time_ist
-                }
-            }
-        )
+        # Update dashboard field with latest value if the timestamp is newer
+        field_info = next((f for f in dashboard.get("fields", []) if f["name"] == field_name), None)
+        if field_info is not None:
+            last_update = field_info.get("last_update")
+            payload_ts = payload.timestamp
+            from datetime import timezone
+            # Ensure both are timezone-aware (UTC)
+            if last_update:
+                if hasattr(last_update, 'tzinfo') and last_update.tzinfo is None:
+                    last_update = last_update.replace(tzinfo=timezone.utc)
+                if hasattr(payload_ts, 'tzinfo') and payload_ts.tzinfo is None:
+                    payload_ts = payload_ts.replace(tzinfo=timezone.utc)
+            if not last_update or payload_ts > last_update:
+                await mongodb.get_collection("dashboards").update_one(
+                    {"_id": ObjectId(dashboard_id), "fields.name": field_name},
+                    {
+                        "$set": {
+                            "fields.$.last_value": float(payload.value),
+                            "fields.$.last_update": payload.timestamp,
+                            "updated_at": payload.timestamp
+                        }
+                    }
+                )
 
         return {
             "message": "Data point added successfully",
             "data_point_id": str(result.inserted_id),
-            "value": value,
-            "timestamp": data_point["timestamp"].isoformat()
+            "value": payload.value,
+            "timestamp": payload.timestamp.isoformat()
         }
 
     except HTTPException as http_exc:

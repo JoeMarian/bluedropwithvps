@@ -55,9 +55,10 @@ async def login_access_token(form_data: OAuth2PasswordRequestForm = Depends()) -
             detail="Your account is pending approval by an administrator",
         )
 
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    is_admin = user.get("is_admin", False)
+    expires_delta = timedelta(hours=6) if is_admin else timedelta(days=1)
     access_token = create_access_token(
-        data={"sub": str(user["_id"])}, expires_delta=access_token_expires
+        data={"sub": str(user["_id"])}, is_admin=is_admin, expires_delta=expires_delta
     )
 
     return {

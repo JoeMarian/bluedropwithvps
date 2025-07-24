@@ -13,15 +13,16 @@ import {
   Chip,
   CircularProgress,
   Alert,
-  Tabs,
-  Tab
+  Avatar,
+  Tooltip,
+  Stack
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import PersonIcon from '@mui/icons-material/Person';
 import { api } from '../../contexts/AuthContext';
-import { formatIST } from '../../utils/date';
 
 interface User {
   _id: string;
@@ -40,7 +41,6 @@ const UserManagement: React.FC = () => {
   const [pendingUsers, setPendingUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tabValue, setTabValue] = useState(0);
 
   useEffect(() => {
     fetchUsers();
@@ -99,78 +99,84 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
-  };
-
   const renderUserTable = (userList: User[], showActions: boolean = true) => (
-    <TableContainer component={Paper}>
+    <Paper elevation={3} sx={{ borderRadius: 4, overflow: 'hidden', mb: 4, boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.07)' }}>
+      <TableContainer>
       <Table>
-        <TableHead>
+          <TableHead sx={{ background: 'linear-gradient(90deg, #6366f1 0%, #60a5fa 100%)' }}>
           <TableRow>
-            <TableCell>Username</TableCell>
-            <TableCell>Email</TableCell>
-            <TableCell>Status</TableCell>
-            <TableCell>Created</TableCell>
-            {showActions && <TableCell>Actions</TableCell>}
+              <TableCell sx={{ color: 'white', fontWeight: 700 }}>User</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 700 }}>Email</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 700 }}>Status</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 700 }}>Role</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 700 }}>Created</TableCell>
+              {showActions && <TableCell sx={{ color: 'white', fontWeight: 700 }}>Actions</TableCell>}
           </TableRow>
         </TableHead>
         <TableBody>
           {userList.map((user) => (
-            <TableRow key={user._id}>
-              <TableCell>{user.username}</TableCell>
+              <TableRow
+                key={user._id}
+                hover
+                sx={{
+                  transition: 'background 0.2s',
+                  '&:hover': { background: 'rgba(99,102,241,0.07)' },
+                }}
+              >
+                <TableCell>
+                  <Stack direction="row" alignItems="center" spacing={2}>
+                    <Avatar sx={{ bgcolor: '#6366f1', color: 'white', fontWeight: 700 }}>
+                      {user.username ? user.username.charAt(0).toUpperCase() : <PersonIcon />}
+                    </Avatar>
+                    <Typography fontWeight={600}>{user.username}</Typography>
+                  </Stack>
+                </TableCell>
               <TableCell>{user.email}</TableCell>
               <TableCell>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  <Chip
-                    label={user.is_verified ? 'Verified' : 'Not Verified'}
-                    color={user.is_verified ? 'success' : 'warning'}
-                    size="small"
-                  />
-                  <Chip
-                    label={user.is_approved ? 'Approved' : 'Not Approved'}
-                    color={user.is_approved ? 'success' : 'warning'}
-                    size="small"
-                  />
-                  {user.is_admin && (
-                    <Chip label="Admin" color="primary" size="small" />
+                  {user.is_admin ? (
+                    <Chip label="Admin" color="secondary" variant="filled" size="small" />
+                  ) : user.is_approved ? (
+                    <Chip label="Approved" color="success" variant="filled" size="small" />
+                  ) : (
+                    <Chip label="Pending" color="warning" variant="filled" size="small" />
                   )}
-                </Box>
+                  {user.is_verified && (
+                    <Chip label="Verified" color="primary" variant="outlined" size="small" sx={{ ml: 1 }} />
+                  )}
               </TableCell>
               <TableCell>
-                {formatIST(user.created_at, { dateStyle: 'medium' })}
+                  {user.is_admin ? (
+                    <Chip label="Admin" color="secondary" size="small" />
+                  ) : (
+                    <Chip label="User" color="primary" size="small" />
+                  )}
               </TableCell>
+                <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
               {showActions && (
                 <TableCell>
-                  {!user.is_admin && (
-                    <>
-                      {!user.is_approved && user.is_verified && (
-                        <IconButton
-                          color="success"
-                          onClick={() => handleApprove(user._id)}
-                          title="Approve User"
-                        >
+                    <Stack direction="row" spacing={1}>
+                      {!user.is_admin && !user.is_approved && (
+                        <Tooltip title="Approve User">
+                          <IconButton color="success" onClick={() => handleApprove(user._id)}>
                           <CheckCircleIcon />
                         </IconButton>
+                        </Tooltip>
                       )}
-                      {user.is_approved && (
-                        <IconButton
-                          color="warning"
-                          onClick={() => handleReject(user._id)}
-                          title="Reject User"
-                        >
+                      {!user.is_admin && user.is_approved && (
+                        <Tooltip title="Reject User">
+                          <IconButton color="warning" onClick={() => handleReject(user._id)}>
                           <CancelIcon />
                         </IconButton>
+                        </Tooltip>
                       )}
-                      <IconButton
-                        color="error"
-                        onClick={() => handleDelete(user._id)}
-                        title="Delete User"
-                      >
+                      {!user.is_admin && (
+                        <Tooltip title="Delete User">
+                          <IconButton color="error" onClick={() => handleDelete(user._id)}>
                         <DeleteIcon />
                       </IconButton>
-                    </>
+                        </Tooltip>
                   )}
+                    </Stack>
                 </TableCell>
               )}
             </TableRow>
@@ -178,6 +184,7 @@ const UserManagement: React.FC = () => {
         </TableBody>
       </Table>
     </TableContainer>
+    </Paper>
   );
 
   if (loading) {
@@ -205,14 +212,7 @@ const UserManagement: React.FC = () => {
         </Alert>
       )}
 
-      <Paper sx={{ width: '100%', mb: 2 }}>
-        <Tabs value={tabValue} onChange={handleTabChange}>
-          <Tab label={`All Users (${users.length})`} />
-          <Tab label={`Pending Approval (${pendingUsers.length})`} />
-        </Tabs>
-      </Paper>
-
-      {tabValue === 0 && (
+      {/* Remove all tab logic. Only show the user management table. */}
         <Box>
           <Typography variant="h6" gutterBottom>
             All Users
@@ -223,10 +223,8 @@ const UserManagement: React.FC = () => {
             renderUserTable(users)
           )}
         </Box>
-      )}
 
-      {tabValue === 1 && (
-        <Box>
+      <Box mt={4}>
           <Typography variant="h6" gutterBottom>
             Users Pending Approval
           </Typography>
@@ -236,7 +234,6 @@ const UserManagement: React.FC = () => {
             renderUserTable(pendingUsers)
           )}
         </Box>
-      )}
     </Box>
   );
 };

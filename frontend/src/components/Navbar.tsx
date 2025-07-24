@@ -95,7 +95,7 @@ const Navbar: React.FC = () => {
                 backgroundClip: 'text'
               }}
             >
-              TankManage
+              BlueDrop
             </Typography>
             <Typography
               variant="caption"

@@ -11,11 +11,13 @@ import {
   Paper,
   Chip,
   Divider,
-  LinearProgress
+  LinearProgress,
+  Button
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
-  FullscreenExit as FullscreenExitIcon
+  Add as AddIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import {
   LineChart,
@@ -31,6 +33,19 @@ import {
 } from 'recharts';
 import { formatIST } from '../../utils/date';
 import { API_BASE_URL } from '../../config/api';
+import { useNavigate, useParams } from 'react-router-dom';
+import AdminLayout from './AdminLayout';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Alert
+} from '@mui/material';
 
 interface DashboardField {
   name: string;
@@ -53,6 +68,10 @@ interface Widget {
     x: string;
     y: string;
   };
+  comparison?: string;
+  value?: number;
+  color?: string;
+  rules?: { comparison: string; value: number; color: string }[];
 }
 
 interface Dashboard {
@@ -78,16 +97,22 @@ interface DataPoint {
   metadata?: any;
 }
 
-interface DashboardViewerProps {
-  dashboard: Dashboard;
-  onClose: () => void;
-}
-
-const DashboardViewer: React.FC<DashboardViewerProps> = ({ dashboard, onClose }) => {
+const DashboardViewer: React.FC = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [widgetData, setWidgetData] = useState<Record<string, DataPoint[]>>({});
   const [loading, setLoading] = useState<Record<string, boolean>>({});
-  const [dashboardData, setDashboardData] = useState<Dashboard>(dashboard);
+  const [dashboardData, setDashboardData] = useState<Dashboard | null>(null);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [addField, setAddField] = useState<string>('');
+  const [addDate, setAddDate] = useState('');
+  const [addTime, setAddTime] = useState('');
+  const [addValue, setAddValue] = useState('');
+  const [addMode, setAddMode] = useState<'edit'|'new'|null>(null);
+  const [addError, setAddError] = useState<string|null>(null);
+  const [addSuccess, setAddSuccess] = useState<string|null>(null);
+  const [addLoading, setAddLoading] = useState(false);
 
   // Move refreshDashboard to component scope
   const refreshDashboard = async () => {
@@ -99,7 +124,7 @@ const DashboardViewer: React.FC<DashboardViewerProps> = ({ dashboard, onClose })
       }
 
       const response = await fetch(
-        `${API_BASE_URL}/dashboards/${dashboard._id}`,
+        `${API_BASE_URL}/dashboards/${id}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -134,13 +159,15 @@ const DashboardViewer: React.FC<DashboardViewerProps> = ({ dashboard, onClose })
     const interval = setInterval(refreshDashboard, 30000);
 
     return () => clearInterval(interval);
-  }, [dashboard._id]);
+  }, [id]);
 
   useEffect(() => {
     // Fetch data for all widgets when dashboard changes
-    dashboardData.widgets.forEach(widget => {
-      fetchWidgetData(widget.field);
-    });
+    if (dashboardData) {
+      dashboardData.widgets.forEach(widget => {
+        fetchWidgetData(widget.field);
+      });
+    }
   }, [dashboardData]);
 
   const fetchWidgetData = async (fieldName: string) => {
@@ -154,7 +181,7 @@ const DashboardViewer: React.FC<DashboardViewerProps> = ({ dashboard, onClose })
       }
 
       const response = await fetch(
-        `${API_BASE_URL}/dashboard/${dashboard._id}/field/${fieldName}/data?hours=24&limit=50`,
+        `${API_BASE_URL}/dashboard/${id}/field/${fieldName}/data?hours=24&limit=50`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -197,7 +224,7 @@ const DashboardViewer: React.FC<DashboardViewerProps> = ({ dashboard, onClose })
   };
 
   const getFieldLastUpdate = (fieldName: string): string => {
-    const field = dashboardData.fields.find(f => f.name === fieldName);
+    const field = dashboardData?.fields.find(f => f.name === fieldName);
     if (field && field.last_update) {
       return formatIST(field.last_update, { dateStyle: 'medium', timeStyle: 'short' });
     }
@@ -209,13 +236,186 @@ const DashboardViewer: React.FC<DashboardViewerProps> = ({ dashboard, onClose })
     return 'No data';
   };
 
+  const handleOpenAddDialog = (fieldName: string) => {
+    setAddField(fieldName);
+    setAddDate('');
+    setAddTime('');
+    setAddValue('');
+    setAddMode(null);
+    setAddError(null);
+    setAddSuccess(null);
+    setAddDialogOpen(true);
+  };
+  const handleCloseAddDialog = () => {
+    setAddDialogOpen(false);
+  };
+  const handleCheckData = async () => {
+    setAddError(null);
+    setAddSuccess(null);
+    setAddMode(null);
+    if (!addField || !addDate || !addTime) {
+      setAddError('Please select field, date, and time.');
+      return;
+    }
+    setAddLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const dateObj = new Date(`${addDate}T00:00:00`);
+      const nextDay = new Date(dateObj);
+      nextDay.setDate(dateObj.getDate() + 1);
+      // Fetch all data for that field for the selected day
+      const resp = await fetch(
+        `${API_BASE_URL}/dashboard/${id}/field/${addField}/data?start=${dateObj.toISOString()}&end=${nextDay.toISOString()}&limit=500`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      if (!resp.ok) throw new Error('Failed to fetch data');
+      const data: DataPoint[] = await resp.json();
+      // Find by hh:mm
+      const [hh, mm] = addTime.split(':');
+      const found = data.find(d => {
+        const dt = new Date(d.timestamp);
+        return dt.getHours() === parseInt(hh) && dt.getMinutes() === parseInt(mm);
+      });
+      if (found) {
+        setAddMode('edit');
+        setAddValue(found.value.toString());
+        setAddSuccess('Previous data found. You can update the value.');
+      } else {
+        setAddMode('new');
+        setAddValue('');
+        setAddSuccess('No previous data at this time. You can add new data.');
+      }
+    } catch (err) {
+      setAddError('Failed to check for previous data.');
+    } finally {
+      setAddLoading(false);
+    }
+  };
+  const handleSubmitAddData = async () => {
+    setAddError(null);
+    setAddSuccess(null);
+    if (!addField || !addDate || !addTime || addValue === '') {
+      setAddError('All fields are required.');
+      return;
+    }
+    setAddLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const isoTimestamp = new Date(`${addDate}T${addTime}:00`).toISOString();
+      const payload = {
+        dashboard_id: id,
+        field_name: addField,
+        value: parseFloat(addValue),
+        timestamp: isoTimestamp
+      };
+      const resp = await fetch(
+        `${API_BASE_URL}/dashboard/${id}/field/${addField}/data`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        }
+      );
+      if (!resp.ok) {
+        const errData = await resp.json();
+        throw new Error(errData.detail || 'Failed to add/update data');
+      }
+      setAddSuccess(addMode === 'edit' ? 'Data updated successfully.' : 'Data added successfully.');
+      refreshDashboard();
+      setTimeout(() => setAddDialogOpen(false), 1200);
+    } catch (err: any) {
+      setAddError(err.message || 'Failed to add/update data.');
+    } finally {
+      setAddLoading(false);
+    }
+  };
+
   const renderWidget = (widget: Widget) => {
-    const field = dashboardData.fields.find(f => f.name === widget.field);
+    const field = dashboardData?.fields.find(f => f.name === widget.field);
     const data = widgetData[widget.field] || [];
     const chartData = formatChartData(data);
     const latestValue = getLatestValue(widget.field);
     const isLoading = loading[widget.field];
     
+    // In renderWidget, add support for indicator widgets
+    if (widget.type === 'indicator') {
+      // Always use the latest value from data points
+      const rules = widget.rules && widget.rules.length > 0 ? widget.rules : [{ comparison: '>=', value: 0, color: 'green' }];
+      const value = getLatestValue(widget.field);
+      let matchedColor = null;
+      for (const rule of rules) {
+        switch (rule.comparison) {
+          case '>=':
+            if (value >= rule.value) matchedColor = rule.color;
+            break;
+          case '<=':
+            if (value <= rule.value) matchedColor = rule.color;
+            break;
+          case '>':
+            if (value > rule.value) matchedColor = rule.color;
+            break;
+          case '<':
+            if (value < rule.value) matchedColor = rule.color;
+            break;
+          case '==':
+            if (value === rule.value) matchedColor = rule.color;
+            break;
+          default:
+            break;
+        }
+        if (matchedColor) break;
+      }
+      const colorMap: Record<string, string> = {
+        red: '#e53935',
+        green: '#43a047',
+        yellow: '#fbc02d',
+        blue: '#1e88e5',
+        orange: '#fb8c00',
+        purple: '#8e24aa',
+      };
+      const circleColor = matchedColor ? colorMap[matchedColor] || '#43a047' : '#bdbdbd';
+      return (
+        <Card key={widget.id} sx={{ height: '100%' }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 180 }}>
+              <Box
+                sx={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: '50%',
+                  background: circleColor,
+                  mb: 2,
+                  boxShadow: matchedColor ? `0 0 0 4px ${circleColor}33` : undefined,
+                  border: matchedColor ? '3px solid #fff' : '3px dashed #eee',
+                  transition: 'background 0.3s',
+                }}
+              />
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>{widget.title}</Typography>
+              {widget.field && (
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  Field: {widget.field}
+                </Typography>
+              )}
+              {/* Show all rules for admin reference */}
+              <Box sx={{ mb: 1 }}>
+                {rules.map((rule, idx) => (
+                  <Typography key={idx} variant="caption" color="text.secondary" display="block">
+                    {rule.comparison} {rule.value} → {rule.color}
+                  </Typography>
+                ))}
+              </Box>
+              <Typography variant="h5" color="text.primary" sx={{ fontWeight: 700 }}>
+                {value}
+              </Typography>
+            </Box>
+          </CardContent>
+        </Card>
+      );
+    }
+
     return (
       <Card key={widget.id} sx={{ height: '100%' }}>
         <CardContent>
@@ -377,7 +577,7 @@ const DashboardViewer: React.FC<DashboardViewerProps> = ({ dashboard, onClose })
           )}
           
           {/* Fallback for unknown widget types */}
-          {!['chart', 'numeric', 'bar'].includes(widget.type) && (
+          {!['chart', 'numeric', 'bar', 'indicator'].includes(widget.type) && (
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <Typography variant="h6" color="error">
                 Unknown widget type: {widget.type}
@@ -411,10 +611,13 @@ const DashboardViewer: React.FC<DashboardViewerProps> = ({ dashboard, onClose })
     //   : 'No data';
 
     return (
-      <Card key={field.name} sx={{ height: '100%' }}>
+      <Card key={field.name} sx={{ height: '100%', position: 'relative' }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             {field.name}
+            <IconButton size="small" color="secondary" sx={{ ml: 1 }} onClick={() => handleOpenAddDialog(field.name)}>
+              <AddIcon fontSize="small" />
+            </IconButton>
           </Typography>
           <Typography variant="h4" color="primary">
             {field.value !== undefined && field.value !== null ? field.value : 'N/A'}
@@ -433,46 +636,50 @@ const DashboardViewer: React.FC<DashboardViewerProps> = ({ dashboard, onClose })
     );
   };
 
-  return (
-    <Box sx={{ 
-      position: 'fixed', 
-      top: 0, 
-      left: 0, 
-      right: 0, 
-      bottom: 0, 
-      bgcolor: 'background.default',
-      zIndex: 1300,
-      overflow: 'auto'
-    }}>
-      <AppBar position="static">
-        <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            {dashboardData.name} - Dashboard View
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Chip 
-              label={`${dashboardData.fields.length} Fields`} 
-              size="small" 
-              color="secondary" 
-            />
-            <Chip 
-              label={`${dashboardData.widgets.length} Widgets`} 
-              size="small" 
-              color="secondary" 
-            />
-            {dashboardData.is_public && (
-              <Chip label="Public" size="small" color="success" />
-            )}
-            <IconButton color="inherit" onClick={refreshDashboard}>
+  if (!dashboardData) {
+    return (
+      <Box sx={{ 
+        position: 'fixed', 
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0, 
+        bgcolor: 'background.default',
+        zIndex: 1300,
+        overflow: 'auto'
+      }}>
+        <AppBar position="static">
+          <Toolbar>
+            <Typography variant="h6" sx={{ flexGrow: 1 }}>
+              Dashboard Not Found
+            </Typography>
+            <IconButton onClick={() => navigate('/admin/dashboards')}>
               <RefreshIcon />
             </IconButton>
-            <IconButton color="inherit" onClick={onClose}>
-              <FullscreenExitIcon />
+          </Toolbar>
+        </AppBar>
+        <Box sx={{ p: 3 }}>
+          <Typography variant="h6" color="text.secondary">
+            Dashboard with ID {id} not found.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Please check the dashboard ID or return to the list.
+          </Typography>
+          <Box sx={{ mt: 2 }}>
+            <IconButton onClick={() => navigate('/admin/dashboards')}>
+              Back to Dashboards
             </IconButton>
           </Box>
-        </Toolbar>
-      </AppBar>
+        </Box>
+      </Box>
+    );
+  }
 
+  return (
+    <AdminLayout>
+      <Button variant="outlined" onClick={() => navigate('/admin/dashboards')} sx={{ mb: 2 }}>
+        Back to Manage Dashboards
+      </Button>
       <Box sx={{ p: 3 }}>
         {/* Dashboard Header */}
         <Box sx={{ mb: 3 }}>
@@ -536,7 +743,71 @@ const DashboardViewer: React.FC<DashboardViewerProps> = ({ dashboard, onClose })
           </Box>
         )}
       </Box>
-    </Box>
+      {/* Add Previous Data Dialog */}
+      <Dialog open={addDialogOpen} onClose={handleCloseAddDialog} maxWidth="xs" fullWidth>
+        <DialogTitle>
+          Add/Edit Previous Data
+          <IconButton onClick={handleCloseAddDialog} sx={{ position: 'absolute', right: 8, top: 8 }}>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {addError && <Alert severity="error" sx={{ mb: 2 }}>{addError}</Alert>}
+          {addSuccess && <Alert severity="success" sx={{ mb: 2 }}>{addSuccess}</Alert>}
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel>Field</InputLabel>
+            <Select
+              value={addField}
+              label="Field"
+              onChange={e => setAddField(e.target.value)}
+            >
+              {dashboardData?.fields.map(f => (
+                <MenuItem key={f.name} value={f.name}>{f.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <TextField
+            label="Date"
+            type="date"
+            fullWidth
+            value={addDate}
+            onChange={e => setAddDate(e.target.value)}
+            sx={{ mb: 2 }}
+            InputLabelProps={{ shrink: true }}
+          />
+          <TextField
+            label="Time (hh:mm)"
+            type="time"
+            fullWidth
+            value={addTime}
+            onChange={e => setAddTime(e.target.value)}
+            sx={{ mb: 2 }}
+            InputLabelProps={{ shrink: true }}
+            inputProps={{ step: 60 }}
+          />
+          {(addMode === 'edit' || addMode === 'new') && (
+            <TextField
+              label="Value"
+              type="number"
+              fullWidth
+              value={addValue}
+              onChange={e => setAddValue(e.target.value)}
+              sx={{ mb: 2 }}
+              InputLabelProps={{ shrink: true }}
+            />
+          )}
+          <Button
+            variant="contained"
+            fullWidth
+            sx={{ mt: 1 }}
+            onClick={addMode ? handleSubmitAddData : handleCheckData}
+            disabled={addLoading}
+          >
+            {addMode ? (addMode === 'edit' ? 'Update Data' : 'Add Data') : 'Check for Previous Data'}
+          </Button>
+        </DialogContent>
+      </Dialog>
+    </AdminLayout>
   );
 };
 

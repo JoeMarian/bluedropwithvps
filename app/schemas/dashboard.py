@@ -18,6 +18,7 @@ class Widget(BaseModel):
     aggregationInterval: Optional[str] = None
     unit: Optional[str] = None
     axisLabels: Optional[dict] = None
+    rules: Optional[list] = None
 
 class DashboardBase(BaseModel):
     name: str

@@ -7,9 +7,11 @@ import Navbar from './components/Navbar';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import EmailVerification from './pages/EmailVerification';
-import AdminDashboard from './pages/admin/Dashboard';
-import UserDashboard from './pages/user/UserDashboard';
+import ManageUsers from './pages/admin/ManageUsers';
+import ManageDashboards from './pages/admin/ManageDashboards';
+import DashboardViewer from './pages/admin/DashboardViewer';
 import ResetPassword from './pages/ResetPassword';
+import UserDashboard from './pages/user/UserDashboard';
 import './App.css';
 
 // Create a modern, professional theme
@@ -123,7 +125,7 @@ const PrivateRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean }>
       }}>
         <div style={{ textAlign: 'center', color: 'white' }}>
           <div style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '1rem' }}>
-            TankManage
+            BlueDrop
           </div>
           <div style={{ fontSize: '1rem', opacity: 0.8 }}>
             Loading...
@@ -164,11 +166,38 @@ const AppRoutes: React.FC = () => {
           <Route path="/verify-email/:token" element={<EmailVerification />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route 
+            path="/admin/users" 
+            element={
+              <PrivateRoute adminOnly>
+                <Navbar />
+                <ManageUsers />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/admin/dashboards" 
+            element={
+              <PrivateRoute adminOnly>
+                <Navbar />
+                <ManageDashboards />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/admin/dashboards/:id" 
+            element={
+              <PrivateRoute adminOnly>
+                <Navbar />
+                <DashboardViewer />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
             path="/admin" 
             element={
               <PrivateRoute adminOnly>
                 <Navbar />
-                <AdminDashboard />
+                <ManageUsers />
               </PrivateRoute>
             } 
           />

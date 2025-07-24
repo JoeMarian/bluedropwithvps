@@ -136,7 +136,7 @@ const ResetPassword: React.FC = () => {
               textShadow: '0 2px 4px rgba(0,0,0,0.1)'
             }}
           >
-            TankManage {/* Changed from BlueDrop to TankManage as per Login.tsx */}
+            BlueDrop {/* Changed from BlueDrop to TankManage as per Login.tsx */}
           </Typography>
           <Typography
             variant="subtitle1"
@@ -206,7 +206,7 @@ const ResetPassword: React.FC = () => {
               fontSize: '0.875rem'
             }}
           >
-          TankManage by TeamSKRN.
+          BlueDrop by TeamSKRN.
           </Typography>
         </Box>
       </Container>

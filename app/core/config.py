@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     
     # MongoDB Configuration
-    MONGODB_URI: str = os.getenv("MONGODB_URI", "mongodb://localhost:27017/thingspeak_clone")
+    MONGODB_URI: str = os.getenv("MONGODB_URI", "mongodb://localhost:27017/bluedrop_cloudflare")
     
     # JWT Configuration
     SECRET_KEY: str = os.getenv("JWT_SECRET", "your_jwt_secret_key_here")

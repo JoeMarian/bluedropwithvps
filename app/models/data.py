@@ -38,6 +38,7 @@ class DataPointCreate(BaseModel):
     dashboard_id: str
     field_name: str
     value: float
+    timestamp: datetime
     metadata: Optional[Dict[str, Any]] = None
 
 class DataPointResponse(BaseModel):
