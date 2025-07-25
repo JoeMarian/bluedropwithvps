@@ -2,17 +2,13 @@ import React from 'react';
 import { Box, Button, AppBar, Toolbar } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import DashboardIcon from '@mui/icons-material/Dashboard';
-import LogoutIcon from '@mui/icons-material/Logout';
 
 const UserLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isDashboard = location.pathname === '/dashboard';
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate('/login');
-  };
+  
 
   return (
     <Box
@@ -56,16 +52,7 @@ const UserLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           >
             Dashboard
           </Button>
-          <Button
-            startIcon={<LogoutIcon />}
-            variant="outlined"
-            color="error"
-            size="large"
-            sx={{ fontWeight: 700, borderRadius: 3, px: 4, fontSize: '1.1rem' }}
-            onClick={handleLogout}
-          >
-            Logout
-          </Button>
+          
         </Toolbar>
       </AppBar>
       <Box sx={{ maxWidth: 1200, mx: 'auto', mt: 6, p: 3 }}>{children}</Box>

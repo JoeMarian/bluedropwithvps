@@ -1,5 +1,5 @@
 // MongoDB initialization script
-db = db.getSiblingDB('bluedrop_cloudflare');
+db = db.getSiblingDB('bluedrop_vps');
 
 // Create application user
 db.createUser({
@@ -8,7 +8,7 @@ db.createUser({
   roles: [
     {
       role: 'readWrite',
-      db: 'bluedrop_cloudflare'
+      db: 'bluedrop_vps' // Use the same DB name for the role
     }
   ]
 });

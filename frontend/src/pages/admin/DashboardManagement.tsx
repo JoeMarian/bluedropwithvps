@@ -445,50 +445,50 @@ const DashboardManagement: React.FC = () => {
       ) : (
         <Paper elevation={3} sx={{ borderRadius: 4, overflow: 'hidden', mb: 4, boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.07)' }}>
           <>
-            <Grid container spacing={3}>
-              {dashboards.map((dashboard) => (
-                <Grid item xs={12} sm={6} md={4} key={dashboard._id}>
+        <Grid container spacing={3}>
+          {dashboards.map((dashboard) => (
+            <Grid item xs={12} sm={6} md={4} key={dashboard._id}>
                   <Card sx={{ '&:hover': { boxShadow: 6 } }}>
-                    <CardContent>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <Typography variant="h6" component="div">
-                          {dashboard.name}
-                        </Typography>
-                        <Box>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Typography variant="h6" component="div">
+                      {dashboard.name}
+                    </Typography>
+                    <Box>
                           <Tooltip title="Edit Dashboard">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleEdit(dashboard)}
-                            >
-                              <EditIcon />
-                            </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleEdit(dashboard)}
+                      >
+                        <EditIcon />
+                      </IconButton>
                           </Tooltip>
                           <Tooltip title="View Full Screen">
-                            <IconButton
-                              size="small"
-                              color="primary"
+                      <IconButton
+                        size="small"
+                        color="primary"
                               onClick={() => navigate(`/admin/dashboards/${dashboard._id}`)}
-                            >
-                              <ViewIcon />
-                            </IconButton>
+                      >
+                        <ViewIcon />
+                      </IconButton>
                           </Tooltip>
                           <Tooltip title="View Details">
-                            <IconButton
-                              size="small"
-                              color="info"
-                              onClick={() => handleViewDetails(dashboard)}
-                            >
-                              <DetailsIcon />
-                            </IconButton>
+                      <IconButton
+                        size="small"
+                        color="info"
+                        onClick={() => handleViewDetails(dashboard)}
+                      >
+                        <DetailsIcon />
+                      </IconButton>
                           </Tooltip>
                           <Tooltip title="Delete Dashboard">
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => handleDeleteDashboard(dashboard._id)}
-                            >
-                              <DeleteIcon />
-                            </IconButton>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => handleDeleteDashboard(dashboard._id)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
                           </Tooltip>
                           <Tooltip title="Add Previous Data">
                             <IconButton size="small" color="secondary" onClick={() => handleOpenAddDialog(dashboard)}>
@@ -507,24 +507,24 @@ const DashboardManagement: React.FC = () => {
                               <ContentCopyIcon />
                             </IconButton>
                           </Tooltip>
-                        </Box>
-                      </Box>
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                        {dashboard.description}
-                      </Typography>
-                      <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                        <Chip label={`${dashboard.fields.length} Fields`} size="small" />
-                        <Chip label={`${dashboard.assigned_users.length} Users`} size="small" />
-                        {dashboard.is_public && <Chip label="Public" size="small" color="primary" />}
-                      </Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-                        Created: {formatIST(dashboard.created_at)}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
+                    </Box>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    {dashboard.description}
+                  </Typography>
+                  <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Chip label={`${dashboard.fields.length} Fields`} size="small" />
+                    <Chip label={`${dashboard.assigned_users.length} Users`} size="small" />
+                    {dashboard.is_public && <Chip label="Public" size="small" color="primary" />}
+                  </Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
+                    Created: {formatIST(dashboard.created_at)}
+                  </Typography>
+                </CardContent>
+              </Card>
             </Grid>
+          ))}
+        </Grid>
             <Fab
               color="primary"
               aria-label="add"
@@ -851,7 +851,7 @@ const DashboardManagement: React.FC = () => {
                                   }}>
                                     <RemoveIcon />
                                   </IconButton>
-                                </Box>
+                      </Box>
                               ))}
                               <Button
                                 startIcon={<AddIcon />}

@@ -217,16 +217,16 @@ async def add_data_point(
                 if hasattr(payload_ts, 'tzinfo') and payload_ts.tzinfo is None:
                     payload_ts = payload_ts.replace(tzinfo=timezone.utc)
             if not last_update or payload_ts > last_update:
-                await mongodb.get_collection("dashboards").update_one(
-                    {"_id": ObjectId(dashboard_id), "fields.name": field_name},
-                    {
-                        "$set": {
+        await mongodb.get_collection("dashboards").update_one(
+            {"_id": ObjectId(dashboard_id), "fields.name": field_name},
+            {
+                "$set": {
                             "fields.$.last_value": float(payload.value),
                             "fields.$.last_update": payload.timestamp,
                             "updated_at": payload.timestamp
-                        }
-                    }
-                )
+                }
+            }
+        )
 
         return {
             "message": "Data point added successfully",

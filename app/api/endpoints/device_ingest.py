@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 from app.db.mongodb import mongodb
 from bson import ObjectId
+from typing import Optional
 
 # IST timezone (UTC+5:30) - Define here as it's used in this module
 IST_TIMEZONE = timezone(timedelta(hours=5, minutes=30))
@@ -15,6 +16,7 @@ class DeviceIngestRequest(BaseModel):
     dashboard_id: str
     field_name: str
     value: float
+    timestamp: Optional[datetime] = None  # Allow optional timestamp
 
 @router.post("/device-ingest")
 async def device_ingest(
@@ -24,6 +26,7 @@ async def device_ingest(
     """
     Endpoint for device data ingestion.
     Requires an X-API-KEY header for authentication.
+    If 'timestamp' is provided, only allow if API key belongs to an admin dashboard.
     """
     try:
         # 1. Get API key from header
@@ -37,7 +40,6 @@ async def device_ingest(
             raise HTTPException(status_code=403, detail="Invalid API key or dashboard not found for this key")
 
         # 3. Check dashboard_id matches the one associated with the API key
-        # Convert ObjectId to string for comparison if dashboard["_id"] is an ObjectId
         if str(dashboard["_id"]) != payload.dashboard_id:
             raise HTTPException(status_code=403, detail="Provided dashboard ID does not match the API key's associated dashboard.")
 
@@ -46,26 +48,40 @@ async def device_ingest(
         if not field_exists:
             raise HTTPException(status_code=404, detail=f"Field '{payload.field_name}' not found in dashboard '{payload.dashboard_id}'.")
 
-        # 5. Insert the new data point into the 'data_points' collection
-        current_time_ist = datetime.now(IST_TIMEZONE)
+        # 5. Determine timestamp logic
+        use_custom_timestamp = False
+        # Check if dashboard has is_admin flag (or check user if you have user collection)
+        is_admin_dashboard = dashboard.get("is_admin", False)
+        # Only allow custom timestamp if dashboard is admin
+        if payload.timestamp is not None:
+            if is_admin_dashboard:
+                timestamp_to_use = payload.timestamp
+                use_custom_timestamp = True
+            else:
+                raise HTTPException(status_code=403, detail="Only admin dashboards can set a custom timestamp.")
+        else:
+            from datetime import datetime, timezone, timedelta
+            IST_TIMEZONE = timezone(timedelta(hours=5, minutes=30))
+            timestamp_to_use = datetime.now(IST_TIMEZONE)
+
+        # 6. Insert the new data point into the 'data_points' collection
         data_point = {
             "dashboard_id": payload.dashboard_id,
             "field_name": payload.field_name,
             "value": float(payload.value),
-            "timestamp": current_time_ist,
-            "metadata": {"source": "device", "api_key_used": api_key} # Added api_key_used for logging/auditing
+            "timestamp": timestamp_to_use,
+            "metadata": {"source": "device", "api_key_used": api_key, "custom_timestamp": use_custom_timestamp}
         }
         result = await mongodb.get_collection("data_points").insert_one(data_point)
 
-        # 6. Update the dashboard's field with the latest value and update timestamp
-        # This ensures the dashboard always shows the most recent data for quick access
+        # 7. Update the dashboard's field with the latest value and update timestamp if newer
         await mongodb.get_collection("dashboards").update_one(
             {"_id": ObjectId(payload.dashboard_id), "fields.name": payload.field_name},
             {
                 "$set": {
                     "fields.$.last_value": float(payload.value),
-                    "fields.$.last_update": current_time_ist,
-                    "updated_at": current_time_ist # Update dashboard's overall updated_at
+                    "fields.$.last_update": timestamp_to_use,
+                    "updated_at": timestamp_to_use
                 }
             }
         )
@@ -74,7 +90,8 @@ async def device_ingest(
             "message": "Data point ingested successfully",
             "data_point_id": str(result.inserted_id),
             "value": payload.value,
-            "timestamp": data_point["timestamp"].isoformat()
+            "timestamp": timestamp_to_use.isoformat(),
+            "custom_timestamp": use_custom_timestamp
         }
 
     except HTTPException as http_exc:

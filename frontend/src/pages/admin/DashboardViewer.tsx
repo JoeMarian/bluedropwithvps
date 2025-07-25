@@ -164,9 +164,9 @@ const DashboardViewer: React.FC = () => {
   useEffect(() => {
     // Fetch data for all widgets when dashboard changes
     if (dashboardData) {
-      dashboardData.widgets.forEach(widget => {
-        fetchWidgetData(widget.field);
-      });
+    dashboardData.widgets.forEach(widget => {
+      fetchWidgetData(widget.field);
+    });
     }
   }, [dashboardData]);
 
@@ -415,7 +415,7 @@ const DashboardViewer: React.FC = () => {
         </Card>
       );
     }
-
+    
     return (
       <Card key={widget.id} sx={{ height: '100%' }}>
         <CardContent>
@@ -637,22 +637,22 @@ const DashboardViewer: React.FC = () => {
   };
 
   if (!dashboardData) {
-    return (
-      <Box sx={{ 
-        position: 'fixed', 
-        top: 0, 
-        left: 0, 
-        right: 0, 
-        bottom: 0, 
-        bgcolor: 'background.default',
-        zIndex: 1300,
-        overflow: 'auto'
-      }}>
-        <AppBar position="static">
-          <Toolbar>
-            <Typography variant="h6" sx={{ flexGrow: 1 }}>
+  return (
+    <Box sx={{ 
+      position: 'fixed', 
+      top: 0, 
+      left: 0, 
+      right: 0, 
+      bottom: 0, 
+      bgcolor: 'background.default',
+      zIndex: 1300,
+      overflow: 'auto'
+    }}>
+      <AppBar position="static">
+        <Toolbar>
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>
               Dashboard Not Found
-            </Typography>
+          </Typography>
             <IconButton onClick={() => navigate('/admin/dashboards')}>
               <RefreshIcon />
             </IconButton>
