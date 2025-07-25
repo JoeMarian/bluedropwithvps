@@ -30,13 +30,8 @@ app.add_middleware(
         "http://localhost:5174", 
         "http://127.0.0.1:5173", 
         "http://127.0.0.1:5174",
-        "https://tankmanage.teamskrn.xyz",
-        "https://api.teamskrn.xyz",
-        "https://*.teamskrn.xyz",
-        # Add your tunnel URL here (replace with actual tunnel URL)
-        "https://*.ngrok.io",  # For ngrok tunnels
-        "https://*.trycloudflare.com",  # For Cloudflare tunnels
-        "https://*.loca.lt",  # For localtunnel
+        "https://dashboard.bluedrop.shop",
+        "https://api.bluedrop.shop",
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],

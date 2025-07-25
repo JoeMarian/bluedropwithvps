@@ -3,7 +3,7 @@ version: '3.8'
 services:
   mongo:
     image: mongo:6.0
-    container_name: mongo
+    container_name: mongo-vps
     restart: always
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
@@ -17,7 +17,7 @@ services:
 
   mosquitto:
     image: eclipse-mosquitto:2.0
-    container_name: mosquitto
+    container_name: mqtt-vps
     restart: always
     ports:
       - "1883:1883"
@@ -32,7 +32,7 @@ services:
     build:
       context: .
       dockerfile: app/Dockerfile
-    container_name: backend
+    container_name: backend-vps
     env_file:
       - .env.docker
     depends_on:
@@ -47,7 +47,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: frontend
+    container_name: frontend-vps
     depends_on:
       - backend
     ports:
